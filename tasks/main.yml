@@ -1,0 +1,46 @@
+---
+# tasks file for ansible-mariadb-galera
+
+- name: selinux permissive
+  selinux: policy=targeted state=permissive
+
+- name: firewalld stopped
+  service: name=firewalld state=stopped enabled=no
+
+- name: deploy MariaDB.repo
+  copy: src=MariaDB.repo dest=/etc/yum.repos.d/MariaDB.repo owner=root group=root mode=0644
+
+- name: import RPR-GPG-KEY-MariaDB
+  rpm_key: key=https://yum.mariadb.org/RPM-GPG-KEY-MariaDB state=present
+
+- name: install MariaDB-server MariaDB-client
+  yum: name={{ item }} state=present
+  with_items:
+    - MariaDB-server
+    - MariaDB-client
+
+- name: deploy server.conf to the primary server
+  copy: src=server.conf dest=/etc/my.cnf.d/server.cnf
+  when: role == "primary"
+
+- name: deploy server.conf.j2 to the other servers
+  template: src=server.conf.j2 dest=/etc/my.cnf.d/server.cnf
+  when: role != "primary"
+
+- name: run galera_new_cluster on the primary node
+  shell: galera_new_cluster creates=/var/lib/mysql/galera.cache
+  when: role == "primary"
+
+- name: start and enable mysqld
+  service: name=mysql state=started enabled=yes
+
+- name: get cluster status
+  shell: mysql -u root -e "SHOW GLOBAL STATUS WHERE Variable_name IN ('wsrep_ready', 'wsrep_cluster_size', 'wsrep_cluster_status', 'wsrep_connected');"
+  register: cluster_status
+  changed_when: false
+  when: role == "primary"
+
+- name: show cluster status
+  debug: msg="{{ cluster_status.stdout_lines }}"
+  changed_when: false
+  when: role == "primary"
