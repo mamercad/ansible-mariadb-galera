@@ -40,7 +40,7 @@ Example Playbook
     - hosts:
         - mariadb
       roles:
-        - mariadb-galera
+        - mamercad.mariadb-galera
 
 License
 -------
