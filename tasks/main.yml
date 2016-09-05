@@ -1,11 +1,11 @@
 ---
 # tasks file for ansible-mariadb-galera
 
-- name: selinux permissive
-  selinux: policy=targeted state=permissive
+- name: start and enable firewalld
+  service: name=firewalld state=started enabled=yes
 
-- name: firewalld stopped
-  service: name=firewalld state=stopped enabled=no
+- name: punch a hole for mysql
+  firewalld: port=3306/tcp permanent=true state=enabled immediate=yes
 
 - name: deploy MariaDB.repo
   copy: src=MariaDB.repo dest=/etc/yum.repos.d/MariaDB.repo owner=root group=root mode=0644
@@ -30,6 +30,18 @@
 - name: run galera_new_cluster on the primary node
   shell: galera_new_cluster creates=/var/lib/mysql/galera.cache
   when: role == "primary"
+
+- name: grab selinux modules
+  shell: semodule -l
+  register: selinuxmodules
+
+- name: deploy mysqld-tmp.pp
+  copy: src=mysqld-tmp.pp dest=/tmp/mysqld-tmp.pp owner=root group=root mode=600
+  when: "selinuxmodules.stdout.find('mysqld-tmp') == -1"
+
+- name: load mysqld-tmp.pp
+  command: semodule -i /tmp/mysqld-tmp.pp
+  when: "selinuxmodules.stdout.find('mysqld-tmp') == -1"
 
 - name: start and enable mysqld
   service: name=mysql state=started enabled=yes
