@@ -6,7 +6,7 @@ Stands up MariaDB 10.1.11 (and Galera) on RHEL/CentOS
 Warnings
 --------
 
-The role puts SELinux into permissive mode and disabled firewalld
+None
 
 Requirements
 ------------
